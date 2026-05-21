@@ -17,13 +17,13 @@ public class Musique {
 
     @PrimaryKey(autoGenerate = true)
     @ColumnInfo(name = "IdMusic")
-    public Integer idMusic;
+    public Long idMusic;
 
     @ColumnInfo(name = "IdPlaylist")
-    public Integer idPlaylist;
+    public Long idPlaylist;
 
     @ColumnInfo(name = "IdArtiste")
-    public Integer idArtiste;       // minuscule, cohérent avec le reste
+    public Long idArtiste;
 
     @ColumnInfo(name = "ArtisteName")
     public String artisteName;

@@ -16,7 +16,6 @@
         android:theme="@style/Theme.MyApplication2"
         android:usesCleartextTraffic="true">
 
-        <!-- Nouvelle activité de Login comme LAUNCHER -->
         <activity
             android:name="main.login.LoginActivity"
             android:exported="true">
@@ -28,6 +27,10 @@
 
         <activity
             android:name="main.MainActivity"
+            android:exported="false" />
+
+        <activity
+            android:name="main.IMC.IMCMain"
             android:exported="false" />
 
         <activity

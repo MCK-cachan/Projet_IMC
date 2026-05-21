@@ -3,6 +3,7 @@ package main.music;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.PorterDuff;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.LayoutInflater;
@@ -22,12 +23,15 @@ import com.tonpackage.database.Artiste;
 import com.tonpackage.database.Musique;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
 
 import main.appTool.toolbar_music;
+import main.serveur;
 
 public class ArtisteManage {
 
@@ -73,6 +77,12 @@ public class ArtisteManage {
             });
         }
 
+        SongListAdapter adapter = new SongListAdapter();
+        if (rvSongs != null) {
+            rvSongs.setLayoutManager(new LinearLayoutManager(activity));
+            rvSongs.setAdapter(adapter);
+        }
+
         if (btnPlay != null) {
             btnPlay.setOnClickListener(v -> {
                 main.animation.animationButton.applyBouncingEffect(v);
@@ -90,43 +100,101 @@ public class ArtisteManage {
             });
         }
 
-        if (rvSongs != null) {
-            rvSongs.setLayoutManager(new LinearLayoutManager(activity));
-            SongListAdapter adapter = new SongListAdapter();
-            rvSongs.setAdapter(adapter);
-            loadSongsFromDb(activity, artiste.idArtiste, adapter, artistSongs);
-        }
+        loadData(activity, artiste, adapter, artistSongs);
 
         dynamicContainer.addView(detailView);
     }
 
-    private static void loadSongsFromDb(Activity activity, int artisteId, SongListAdapter adapter, List<Musique> artistSongs) {
+    private static void loadData(Activity activity, Artiste artiste, SongListAdapter adapter, List<Musique> artistSongs) {
         Executors.newSingleThreadExecutor().execute(() -> {
             List<Musique> songs = AppDatabase.getInstance(activity)
                     .musicDao()
-                    .getMusicsByArtiste(artisteId);
+                    .getMusicsByArtiste(artiste.idArtiste);
             new Handler(Looper.getMainLooper()).post(() -> {
-                adapter.setSongs(songs);
-                artistSongs.clear();
-                artistSongs.addAll(songs);
+                if (songs != null && !songs.isEmpty()) {
+                    adapter.setSongs(songs);
+                    artistSongs.clear();
+                    artistSongs.addAll(songs);
+                } else {
+                    // Tenter de charger depuis le serveur
+                    serveur.getArtistTracks(activity, artiste.idArtiste, new serveur.SearchCallback() {
+                        @Override
+                        public void onResult(List<?> results) {
+                            List<Musique> serverSongs = (List<Musique>) results;
+                            adapter.setSongs(serverSongs);
+                            artistSongs.clear();
+                            artistSongs.addAll(serverSongs);
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            // Erreur ou pas de résultats
+                        }
+                    });
+                }
             });
         });
     }
 
-    private static void loadImage(ImageView img, String raw) {
-        if (raw == null || raw.isEmpty()) {
+    private static void loadImage(ImageView img, String path) {
+        if (img == null) return;
+        img.clearColorFilter();
+        img.setTag(path);
+
+        if (path == null || path.isEmpty()) {
             img.setImageResource(R.drawable.music_bloc_like);
             return;
         }
-        String path = raw.replace("\\", "/");
-        if (path.contains("assets/")) path = path.substring(path.indexOf("assets/") + 7);
 
-        try (InputStream is = img.getContext().getAssets().open(path)) {
+        if (path.startsWith("http")) {
+            Executors.newSingleThreadExecutor().execute(() -> {
+                try {
+                    URL url = new URL(path);
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    connection.connect();
+                    InputStream input = connection.getInputStream();
+                    Bitmap myBitmap = BitmapFactory.decodeStream(input);
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (path.equals(img.getTag())) {
+                            img.setImageBitmap(myBitmap);
+                        }
+                    });
+                } catch (Exception e) {
+                    new Handler(Looper.getMainLooper()).post(() -> img.setImageResource(R.drawable.music_bloc_like));
+                }
+            });
+            return;
+        }
+
+        if (path.startsWith("logo:")) {
+            String logoName = path.substring(5);
+            int resId = img.getContext().getResources().getIdentifier(logoName, "drawable", img.getContext().getPackageName());
+            if (resId != 0) {
+                img.setImageResource(resId);
+                return;
+            }
+        }
+
+        if (path.startsWith("/")) {
+            Bitmap bmp = BitmapFactory.decodeFile(path);
+            if (bmp != null) {
+                img.setImageBitmap(bmp);
+                return;
+            }
+        }
+
+        try (InputStream is = img.getContext().getAssets().open(normalizePath(path))) {
             Bitmap bmp = BitmapFactory.decodeStream(is);
-            if (bmp != null) img.setImageBitmap(bmp);
+            img.setImageBitmap(bmp);
         } catch (IOException e) {
             img.setImageResource(R.drawable.music_bloc_like);
         }
+    }
+
+    private static String normalizePath(String raw) {
+        if (raw == null) return "";
+        String p = raw.replace("\\", "/");
+        return p.contains("assets/") ? p.substring(p.indexOf("assets/") + 7) : p;
     }
 
     private static class SongListAdapter extends RecyclerView.Adapter<SongListAdapter.SongHolder> {
@@ -181,19 +249,14 @@ public class ArtisteManage {
                 }
             });
 
-            // --- APPEL AU POPUPMENU CENTRALISÉ ---
             if (holder.options != null) {
                 holder.options.setOnClickListener(v -> {
                     main.animation.animationButton.applyBouncingEffect(v);
-
-                    // On ne met PAS l'action DELETE ici
                     List<String> actions = Arrays.asList(
                             popupMenu.ACTION_QUEUE,
                             popupMenu.ACTION_ADD_PLAYLIST,
                             popupMenu.ACTION_SHARE
                     );
-
-                    // Le callback de suppression est à null car non utilisé ici
                     popupMenu.showCustomMenu(v, m, actions, null);
                 });
             }

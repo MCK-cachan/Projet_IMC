@@ -9,7 +9,7 @@ public class Artiste {
 
     @PrimaryKey
     @ColumnInfo(name = "IdArtiste")
-    public Integer idArtiste;
+    public Long idArtiste;
 
     @ColumnInfo(name = "Pseudo")
     public String Pseudo;

@@ -8,7 +8,7 @@ public class Playlist {
 
     @PrimaryKey(autoGenerate = true)
     @ColumnInfo(name = "IdPlaylist")
-    public Integer IdPlaylist;
+    public Long IdPlaylist;
 
     @ColumnInfo(name = "Name")
     public String Name;

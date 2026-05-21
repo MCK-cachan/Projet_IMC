@@ -26,12 +26,15 @@ import com.tonpackage.database.Playlist;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
 
 import main.appTool.toolbar_music;
+import main.serveur;
 
 public class PlaylistManage {
 
@@ -39,7 +42,6 @@ public class PlaylistManage {
         LinearLayout dynamicContainer = activity.findViewById(R.id.dynamic_modules_container);
         if (dynamicContainer == null) return;
 
-        // Gestion du retour
         if (activity instanceof AppCompatActivity) {
             AppCompatActivity host = (AppCompatActivity) activity;
             OnBackPressedCallback callback = new OnBackPressedCallback(true) {
@@ -55,7 +57,6 @@ public class PlaylistManage {
         dynamicContainer.removeAllViews();
         View detailView = LayoutInflater.from(activity).inflate(R.layout.music_playlist_manage, dynamicContainer, false);
 
-        // UI
         TextView titleView = detailView.findViewById(R.id.playlist_title);
         ImageView bigImage = detailView.findViewById(R.id.playlist_big_image);
         ImageView btnBack = detailView.findViewById(R.id.btn_back);
@@ -65,7 +66,6 @@ public class PlaylistManage {
         titleView.setText(playlist.Name);
         loadPlaylistImage(bigImage, playlist.imagePath, playlist.selectedColor);
 
-        // Liste locale pour stocker les musiques de la playlist
         final List<Musique> songsInPlaylist = new ArrayList<>();
 
         btnBack.setOnClickListener(v -> {
@@ -77,13 +77,15 @@ public class PlaylistManage {
             }
         });
 
+        // Liste des musiques
+        rvSongs.setLayoutManager(new LinearLayoutManager(activity));
+        SongListAdapter songAdapter = new SongListAdapter();
+        rvSongs.setAdapter(songAdapter);
+
         btnPlay.setOnClickListener(v -> {
             main.animation.animationButton.applyBouncingEffect(v);
             if (!songsInPlaylist.isEmpty()) {
-                // On remplace la file actuelle par celle de la playlist
                 musicFile.createQueue(songsInPlaylist);
-                
-                // On lance la musique actuellement en tête de file
                 Musique first = musicFile.getCurrentMusic();
                 if (first != null) {
                     if (first.idMusic != null) {
@@ -95,19 +97,64 @@ public class PlaylistManage {
             }
         });
 
-        // Liste des musiques
-        rvSongs.setLayoutManager(new LinearLayoutManager(activity));
-        SongListAdapter songAdapter = new SongListAdapter();
-        rvSongs.setAdapter(songAdapter);
+        // Tenter de charger depuis la DB locale
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<Musique> songs = AppDatabase.getInstance(activity).musicDao().getMusicsByPlaylist(playlist.IdPlaylist);
+            new Handler(Looper.getMainLooper()).post(() -> {
+                if (songs != null && !songs.isEmpty()) {
+                    songAdapter.setSongs(songs);
+                    songsInPlaylist.clear();
+                    songsInPlaylist.addAll(songs);
+                } else {
+                    // Si vide, c'est peut-être un album du serveur
+                    serveur.getAlbumTracks(activity, playlist.IdPlaylist, new serveur.SearchCallback() {
+                        @Override
+                        public void onResult(List<?> results) {
+                            List<Musique> serverSongs = (List<Musique>) results;
+                            songAdapter.setSongs(serverSongs);
+                            songsInPlaylist.clear();
+                            songsInPlaylist.addAll(serverSongs);
+                        }
 
-        loadSongsFromDb(activity, playlist.IdPlaylist, songAdapter, songsInPlaylist);
+                        @Override
+                        public void onError(String message) {
+                            // Optionnel : afficher une erreur
+                        }
+                    });
+                }
+            });
+        });
+
         dynamicContainer.addView(detailView);
     }
 
     private static void loadPlaylistImage(ImageView img, String path, Integer color) {
+        if (img == null) return;
         img.clearColorFilter();
+        img.setTag(path);
+
         if (path == null || path.isEmpty()) {
             img.setImageResource(R.drawable.music_bloc_like);
+            return;
+        }
+
+        if (path.startsWith("http")) {
+            Executors.newSingleThreadExecutor().execute(() -> {
+                try {
+                    URL url = new URL(path);
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    connection.connect();
+                    InputStream input = connection.getInputStream();
+                    Bitmap myBitmap = BitmapFactory.decodeStream(input);
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (path.equals(img.getTag())) {
+                            img.setImageBitmap(myBitmap);
+                        }
+                    });
+                } catch (Exception e) {
+                    new Handler(Looper.getMainLooper()).post(() -> img.setImageResource(R.drawable.music_bloc_like));
+                }
+            });
             return;
         }
 
@@ -145,17 +192,6 @@ public class PlaylistManage {
         return p.contains("assets/") ? p.substring(p.indexOf("assets/") + 7) : p;
     }
 
-    private static void loadSongsFromDb(Activity activity, int playlistId, SongListAdapter adapter, List<Musique> outList) {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            List<Musique> songs = AppDatabase.getInstance(activity).musicDao().getMusicsByPlaylist(playlistId);
-            new Handler(Looper.getMainLooper()).post(() -> {
-                adapter.setSongs(songs);
-                outList.clear();
-                outList.addAll(songs);
-            });
-        });
-    }
-
     private static class SongListAdapter extends RecyclerView.Adapter<SongListAdapter.SongHolder> {
         private final List<Musique> songList = new ArrayList<>();
 
@@ -181,29 +217,22 @@ public class PlaylistManage {
 
             holder.itemView.setOnClickListener(v -> {
                 main.animation.animationButton.applyBouncingEffect(v);
-                
-                // On charge toute la playlist dans la file
                 musicFile.createQueue(songList);
                 
-                // On cherche la musique cliquée dans la file (car elle peut avoir bougé si le shuffle est actif)
                 int newPos = 0;
                 List<Musique> currentQueue = musicFile.getQueue();
                 for (int i = 0; i < currentQueue.size(); i++) {
                     Musique qm = currentQueue.get(i);
-                    // Comparaison par titre et artiste (ou ID si dispo)
                     if (qm.musicTitle.equals(m.musicTitle) && qm.artisteName.equals(m.artisteName)) {
                         newPos = i;
                         break;
                     }
                 }
-                
-                // On définit la position actuelle sur la musique cliquée
                 musicFile.setCurrentPosition(newPos);
                 
-                // On met à jour l'UI et on lance la lecture
                 Musique current = musicFile.getCurrentMusic();
                 if (current != null) {
-                    if (current.idMusic != null) {
+                    if (current.idMusic != null && current.idMusic > 0) {
                         toolbar_music.setMusicInfoById(current.idMusic);
                     } else {
                         toolbar_music.updateUI(current);
@@ -213,14 +242,12 @@ public class PlaylistManage {
 
             holder.options.setOnClickListener(v -> {
                 main.animation.animationButton.applyBouncingEffect(v);
-
                 List<String> actions = Arrays.asList(
                         popupMenu.ACTION_QUEUE,
                         popupMenu.ACTION_DELETE,
                         popupMenu.ACTION_ADD_PLAYLIST,
                         popupMenu.ACTION_SHARE
                 );
-
                 popupMenu.showCustomMenu(v, m, actions, () -> {
                     int currentPos = holder.getAdapterPosition();
                     if (currentPos != RecyclerView.NO_POSITION) {

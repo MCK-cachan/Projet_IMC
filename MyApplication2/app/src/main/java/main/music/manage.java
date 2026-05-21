@@ -17,7 +17,11 @@ import java.util.concurrent.Executors;
 
 public class manage {
 
+    public enum Section { HOME, PODCAST, PLAYLIST, SPEAKER }
+    private static Section currentSection = Section.HOME;
+
     public static void loadAllModulesHome(Activity activity) {
+        currentSection = Section.HOME;
         LinearLayout container = activity.findViewById(R.id.dynamic_modules_container);
         if (container == null) {
             Log.e("MUSIC_MANAGE", "Container dynamic_modules_container introuvable !");
@@ -58,6 +62,7 @@ public class manage {
     }
 
     public static void loadAllModulesPodcast(Activity activity) {
+        currentSection = Section.PODCAST;
         LinearLayout container = activity.findViewById(R.id.dynamic_modules_container);
         if (container == null) return;
         container.removeAllViews();
@@ -65,13 +70,24 @@ public class manage {
     }
 
     public static void loadAllModulesPlaylist(Activity activity) {
+        currentSection = Section.PLAYLIST;
         PlaylistPage.loadPlaylistAndPodcasts(activity);
     }
 
     public static void loadAllModulesSpeaker(Activity activity) {
+        currentSection = Section.SPEAKER;
         LinearLayout container = activity.findViewById(R.id.dynamic_modules_container);
         if (container == null) return;
         container.removeAllViews();
         new MusicModule(activity, container, "Appareils connectés", true);
+    }
+
+    public static void reloadCurrentSection(Activity activity) {
+        switch (currentSection) {
+            case HOME: loadAllModulesHome(activity); break;
+            case PODCAST: loadAllModulesPodcast(activity); break;
+            case PLAYLIST: loadAllModulesPlaylist(activity); break;
+            case SPEAKER: loadAllModulesSpeaker(activity); break;
+        }
     }
 }

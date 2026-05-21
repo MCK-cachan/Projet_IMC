@@ -26,6 +26,7 @@ import java.net.URL;
 import java.util.concurrent.Executors;
 
 import main.MainActivity;
+import main.serveur;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -83,52 +84,62 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void performHttpPost(String email, String password) {
+
         btnLogin.setEnabled(false);
         progressBar.setVisibility(View.VISIBLE);
 
         Executors.newSingleThreadExecutor().execute(() -> {
+
             String resultNom = "", resultPrenom = "", resultPhoto = "", resultToken = "";
             boolean success = false;
 
             try {
-                // URL du serveur
-                URL url = new URL("http://servfatout.duckdns.org:8081/user/login.php");
+                URL url = new URL(serveur.LOGIN_URL);
+
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
 
-                // Corps de la requête
                 JSONObject jsonParam = new JSONObject();
                 jsonParam.put("mail", email);
                 jsonParam.put("password", password);
 
                 try (OutputStream os = conn.getOutputStream()) {
-                    os.write(jsonParam.toString().getBytes("utf-8"));
+                    os.write(jsonParam.toString().getBytes("UTF-8"));
                 }
 
                 int responseCode = conn.getResponseCode();
-                if (responseCode == 200) { // Correction ici : 200 au lieu de 800
-                    BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"));
+
+                if (responseCode == 200) {
+
+                    BufferedReader br = new BufferedReader(
+                            new InputStreamReader(conn.getInputStream(), "UTF-8"));
+
                     StringBuilder response = new StringBuilder();
                     String line;
-                    while ((line = br.readLine()) != null) response.append(line);
-                    
+
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+
                     JSONObject res = new JSONObject(response.toString());
-                    
-                    // Extraction du token (au premier niveau)
+
                     resultToken = res.optString("token", "");
 
-                    // Extraction des infos utilisateur (dans l'objet "user")
                     if (res.has("user")) {
                         JSONObject userObj = res.getJSONObject("user");
+
                         resultNom = userObj.optString("nom", "Utilisateur");
                         resultPrenom = userObj.optString("prenom", "");
                         resultPhoto = userObj.optString("image", "");
+
                         success = true;
                     }
                 }
+
                 conn.disconnect();
+
             } catch (Exception e) {
                 e.printStackTrace();
             }

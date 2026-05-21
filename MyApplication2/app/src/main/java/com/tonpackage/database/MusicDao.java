@@ -14,7 +14,7 @@ public interface MusicDao {
     List<Playlist> getAllPlaylists();
 
     @Query("DELETE FROM Playlist WHERE IdPlaylist = :playlistId")
-    void deletePlaylist(int playlistId);
+    void deletePlaylist(Long playlistId);
 
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -25,16 +25,16 @@ public interface MusicDao {
     List<Musique> getAllMusics();
 
     @Query("SELECT * FROM Musique WHERE IdMusic = :musicId LIMIT 1")
-    Musique getMusicById(int musicId);
+    Musique getMusicById(Long musicId);
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertMusic(Musique musique);
 
     @Query("DELETE FROM Musique WHERE IdMusic = :musicId")
-    void deleteMusic(int musicId);
+    void deleteMusic(Long musicId);
 
     @Query("SELECT * FROM Musique WHERE IdPlaylist = :playlistId")
-    List<Musique> getMusicsByPlaylist(int playlistId);
+    List<Musique> getMusicsByPlaylist(Long playlistId);
 
     @Query("SELECT * FROM Musique WHERE IsPodcast = 0")
     List<Musique> getAllMusicOnly();
@@ -63,8 +63,8 @@ public interface MusicDao {
     List<Musique> getMusicsByArtiste(String artisteName);
 
     @Query("SELECT * FROM Musique WHERE IdArtiste = :artisteId AND IsPodcast = 0")
-    List<Musique> getMusicsByArtiste(int artisteId);
+    List<Musique> getMusicsByArtiste(Long artisteId);
 
     @Query("SELECT COUNT(*) > 0 FROM Musique WHERE MusicTitle = :title AND IdPlaylist = :playlistId")
-    boolean checkIfMusicInPlaylist(String title, int playlistId);
+    boolean checkIfMusicInPlaylist(String title, Long playlistId);
 }

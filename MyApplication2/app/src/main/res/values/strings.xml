@@ -24,4 +24,72 @@
     <string name="error_empty_name">Please enter a name</string>
     <string name="playlist_created">Playlist created!</string>
 
+    <!-- IMC -->
+
+
+    <!-- Activité 1 -->
+    <string name="hint_prenom">Prénom</string>
+    <string name="btn_calculer">Calculer</string>
+    <string name="img_description">Illustration santé</string>
+    <string name="msg_accueil_defaut">Bienvenue ! Entrez votre prénom pour commencer.</string>
+    <string name="msg_accueil_prenom">Bonjour %1$s !</string>
+    <string name="msg_accueil_imc">Bonjour %1$s !\nVotre dernier IMC était de %2$s.\nVoulez-vous le recalculer ?</string>
+
+
+    <string name="label_genre">Genre :</string>
+    <string name="label_date">Date de naissance :</string>
+    <string name="label_poids">Poids :</string>
+    <string name="label_taille">Taille :</string>
+    <string name="label_resultat">Résultat :</string>
+    <string name="hint_date">JJ/MM/AAAA</string>
+    <string name="hint_poids">Poids en kg</string>
+    <string name="hint_taille">Taille</string>
+    <string name="radio_metre">Mètre</string>
+    <string name="radio_centimetre">Centimètre</string>
+    <string name="checkbox_affichage">Affichage</string>
+    <string name="btn_raz">RAZ</string>
+
+    <!-- Genre Spinner -->
+    <string-array name="genres_array">
+        <item>Homme</item>
+        <item>Femme</item>
+    </string-array>
+
+    <!-- Résultat -->
+    <string name="texte_defaut_resultat">Vous devez cliquer sur le bouton \'Calculer\' pour obtenir un résultat</string>
+    <string name="texte_resultat_simple">Votre IMC est de %1$s</string>
+    <string name="texte_resultat_detail">%1$s, votre IMC est de %2$s.\nPour votre catégorie d\'âge (%3$s), vous êtes dans la catégorie %4$s.</string>
+
+    <!-- Civilités -->
+    <string name="monsieur">Monsieur</string>
+    <string name="madame">Madame</string>
+
+    <!-- Catégories IMC -->
+    <string name="insuff_ponderale">Insuffisance pondérale</string>
+    <string name="poids_normal">Normal</string>
+    <string name="surpoids">Surpoids</string>
+    <string name="obesite">Obésité</string>
+
+    <!-- Tranches d'âge -->
+    <string name="tranche_jeune">18 à 35 ans</string>
+    <string name="tranche_moyen">35 à 65 ans</string>
+    <string name="tranche_age">65 ans et plus</string>
+
+    <!-- Erreurs -->
+    <string name="erreur_champs_vides">Veuillez remplir tous les champs</string>
+    <string name="erreur_valeurs_invalides">Les valeurs saisies sont invalides</string>
+    <string name="erreur_valeurs_zero">Les valeurs doivent être supérieures à zéro</string>
+    <string name="erreur_email">Aucune application email disponible</string>
+    <string name="erreur_calendrier">Aucune application calendrier disponible</string>
+
+    <!-- Dialog RAZ -->
+    <string name="dialog_raz_message">Attention, vous allez supprimer les données</string>
+    <string name="annuler">ANNULER</string>
+    <string name="ok">OK</string>
+
+    <!-- Email -->
+    <string name="email_sujet">IMC</string>
+    <string name="email_body_imc">Mon IMC est de %1$s</string>
+    <string name="email_body_defaut">Mon IMC est de …</string>
+
 </resources>

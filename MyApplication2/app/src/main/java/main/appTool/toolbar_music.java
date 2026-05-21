@@ -3,6 +3,7 @@ package main.appTool;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -13,9 +14,11 @@ import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -26,21 +29,27 @@ import com.tonpackage.database.Musique;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 import main.animation.animationButton;
 import main.animation.animationSeekBar;
 import main.animation.animationTextMusic;
+import main.login.LoginActivity;
 import main.music.MusicService;
 import main.music.musicFile;
 import main.music.popupMenu;
+import main.serveur;
 
 
 public class toolbar_music {
 
     private static boolean isSoundOn = true;
-    private static boolean isPlaying = true;
+    private static boolean isPlaying = false; // Initialized to false, will be updated when music starts
     private static boolean isShuffleOn = false;
     private static SeekBar currentSeekBar;
     private static TextView musicTitleView;
@@ -81,8 +90,9 @@ public class toolbar_music {
             animationTextMusic.setupMarquee(musicTitleView);
         }
 
-        // 2. Logique du bouton SON
+        // --- Synchronisation de l'état actuel ---
         if (btnSound != null) {
+            btnSound.setImageResource(isSoundOn ? R.drawable.ic_sound_yes : R.drawable.ic_sound_no);
             btnSound.setOnClickListener(v -> {
                 isSoundOn = !isSoundOn;
                 btnSound.setImageResource(isSoundOn ? R.drawable.ic_sound_yes : R.drawable.ic_sound_no);
@@ -93,12 +103,11 @@ public class toolbar_music {
             });
         }
 
-        // 3. Logique du bouton PLAY / PAUSE
         if (btnPlayPause != null) {
+            btnPlayPause.setImageResource(isPlaying ? R.drawable.btn_pause : R.drawable.btn_play_pause);
             btnPlayPause.setOnClickListener(v -> togglePlayPause());
         }
 
-        // 4. Logique du bouton SHUFFLE
         if (btnShuffle != null) {
             applyGlowingEffect(btnShuffle, isShuffleOn);
             btnShuffle.setOnClickListener(v -> {
@@ -106,6 +115,19 @@ public class toolbar_music {
                 onShuffle();
             });
         }
+
+        if (currentMusique != null) {
+            updateUIStateOnly(currentMusique);
+            if (isPlaying && currentSeekBar != null && mediaPlayer != null) {
+                // Restaurer la position de la seekbar
+                int progress = (int) ((mediaPlayer.getCurrentPosition() / (float) currentDurationMs) * currentSeekBar.getMax());
+                currentSeekBar.setProgress(progress);
+                animationSeekBar.startAnimation(currentSeekBar, currentDurationMs, percentage -> {
+                    onSeekBarMoved(percentage);
+                });
+            }
+        }
+        // ---------------------------------------
 
         // 5. Logique de la SEEEKBAR
         if (seekBar != null) {
@@ -239,14 +261,34 @@ public class toolbar_music {
     /**
      * Met à jour l'affichage de la toolbar avec les infos d'une musique via son ID
      */
-    public static void setMusicInfoById(int musicId) {
-        if (currentActivity == null) return;
+    public static void setMusicInfoById(Long musicId) {
+        if (currentActivity == null || musicId == null) return;
 
         Executors.newSingleThreadExecutor().execute(() -> {
             Musique m = AppDatabase.getInstance(currentActivity).musicDao().getMusicById(musicId);
             if (m != null) {
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    updateUI(m);
+                new Handler(Looper.getMainLooper()).post(() -> updateUI(m));
+            } else {
+                // Tenter de charger depuis le serveur
+                serveur.getTrack(currentActivity, musicId, new serveur.SearchCallback() {
+                    @Override
+                    public void onResult(List<?> results) {
+                        if (!results.isEmpty()) {
+                            Musique full = (Musique) results.get(0);
+                            new Handler(Looper.getMainLooper()).post(() -> {
+                                // On l'ajoute aussi à la file si elle n'y est pas
+                                if (musicFile.getCurrentMusic() == null || !musicFile.getCurrentMusic().idMusic.equals(full.idMusic)) {
+                                    musicFile.addMusic(full);
+                                }
+                                updateUI(full);
+                            });
+                        }
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        Log.e("TOOLBAR", "Error fetching track: " + message);
+                    }
                 });
             }
         });
@@ -272,15 +314,7 @@ public class toolbar_music {
         // Initialisation et lancement du MediaPlayer
         playAudio(currentActivity, m.audioPath);
 
-        // 1. Titre
-        if (musicTitleView != null) {
-            String fullTitle = m.musicTitle;
-            if (m.artisteName != null && !m.artisteName.isEmpty()) {
-                fullTitle += " - " + m.artisteName;
-            }
-            musicTitleView.setText(fullTitle);
-            animationTextMusic.setupMarquee(musicTitleView);
-        }
+        updateUIStateOnly(m);
 
         // Relance de l'animation avec la nouvelle durée
         if (currentSeekBar != null) {
@@ -292,63 +326,100 @@ public class toolbar_music {
                 onSeekBarMoved(percentage);
             });
         }
+        updateNotification();
+    }
+
+    /**
+     * Met à jour uniquement les éléments visuels sans toucher au MediaPlayer
+     */
+    private static void updateUIStateOnly(Musique m) {
+        if (m == null || currentActivity == null) return;
+
+        // 1. Titre
+        if (musicTitleView != null) {
+            String fullTitle = m.musicTitle;
+            if (m.artisteName != null && !m.artisteName.isEmpty()) {
+                fullTitle += " - " + m.artisteName;
+            }
+            musicTitleView.setText(fullTitle);
+            animationTextMusic.setupMarquee(musicTitleView);
+        }
 
         // 2. Image (Pochette)
-        albumImage.clearColorFilter();
-        albumImage.setBackground(null);
-        albumImage.setPadding(0, 0, 0, 0);
-        albumImage.setImageDrawable(null); 
-        
-        String path = m.imagePath;
+        if (albumImage != null) {
+            albumImage.clearColorFilter();
+            albumImage.setBackground(null);
+            albumImage.setPadding(0, 0, 0, 0);
+            albumImage.setImageDrawable(null); 
+            
+            String path = m.imagePath;
 
-        if (path != null && !path.isEmpty()) {
-            if (path.startsWith("logo:")) {
-                String logoName = path.substring(5);
-                int resId = currentActivity.getResources().getIdentifier(logoName, "drawable", currentActivity.getPackageName());
-                if (resId != 0) {
-                    albumImage.setImageResource(resId);
-                    albumImage.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN);
-                } else {
-                    albumImage.setImageResource(R.drawable.ic_img_default);
+            if (path != null && !path.isEmpty()) {
+                if (path.startsWith("logo:")) {
+                    String logoName = path.substring(5);
+                    int resId = currentActivity.getResources().getIdentifier(logoName, "drawable", currentActivity.getPackageName());
+                    if (resId != 0) {
+                        albumImage.setImageResource(resId);
+                        albumImage.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN);
+                    } else {
+                        albumImage.setImageResource(R.drawable.ic_img_default);
+                    }
+                } 
+                else if (path.startsWith("http")) {
+                    Executors.newSingleThreadExecutor().execute(() -> {
+                        try {
+                            URL url = new URL(path);
+                            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                            connection.connect();
+                            InputStream input = connection.getInputStream();
+                            Bitmap myBitmap = BitmapFactory.decodeStream(input);
+                            new Handler(Looper.getMainLooper()).post(() -> {
+                                if (albumImage != null) albumImage.setImageBitmap(myBitmap);
+                            });
+                        } catch (Exception e) {
+                            new Handler(Looper.getMainLooper()).post(() -> {
+                                if (albumImage != null) albumImage.setImageResource(R.drawable.ic_img_default);
+                            });
+                        }
+                    });
                 }
-            } 
-            else if (path.startsWith("/")) {
-                Bitmap bmp = BitmapFactory.decodeFile(path);
-                if (bmp != null) {
-                    albumImage.setImageBitmap(bmp);
-                } else {
-                    albumImage.setImageResource(R.drawable.ic_img_default);
+                else if (path.startsWith("/")) {
+                    Bitmap bmp = BitmapFactory.decodeFile(path);
+                    if (bmp != null) {
+                        albumImage.setImageBitmap(bmp);
+                    } else {
+                        albumImage.setImageResource(R.drawable.ic_img_default);
+                    }
+                } 
+                else if (path.startsWith("res/drawable/")) {
+                    String iconName = path.substring(13);
+                    int resId = currentActivity.getResources().getIdentifier(iconName, "drawable", currentActivity.getPackageName());
+                    if (resId != 0) {
+                        albumImage.setImageResource(resId);
+                    } else {
+                        albumImage.setImageResource(R.drawable.ic_img_default);
+                    }
                 }
-            } 
-            else if (path.startsWith("res/drawable/")) {
-                String iconName = path.substring(13);
-                int resId = currentActivity.getResources().getIdentifier(iconName, "drawable", currentActivity.getPackageName());
-                if (resId != 0) {
-                    albumImage.setImageResource(resId);
-                } else {
-                    albumImage.setImageResource(R.drawable.ic_img_default);
+                else {
+                    String assetPath = path.replace("\\", "/");
+                    if (assetPath.contains("assets/")) {
+                        assetPath = assetPath.substring(assetPath.indexOf("assets/") + 7);
+                    }
+                    try (InputStream is = currentActivity.getAssets().open(assetPath)) {
+                        Bitmap bmp = BitmapFactory.decodeStream(is);
+                        albumImage.setImageBitmap(bmp);
+                    } catch (IOException e) {
+                        albumImage.setImageResource(R.drawable.ic_img_default);
+                    }
                 }
+            } else {
+                albumImage.setImageResource(R.drawable.ic_img_default);
             }
-            else {
-                String assetPath = path.replace("\\", "/");
-                if (assetPath.contains("assets/")) {
-                    assetPath = assetPath.substring(assetPath.indexOf("assets/") + 7);
-                }
-                try (InputStream is = currentActivity.getAssets().open(assetPath)) {
-                    Bitmap bmp = BitmapFactory.decodeStream(is);
-                    albumImage.setImageBitmap(bmp);
-                } catch (IOException e) {
-                    albumImage.setImageResource(R.drawable.ic_img_default);
-                }
+            
+            if (albumImage.getDrawable() == null) {
+                albumImage.setImageResource(R.drawable.ic_img_default);
             }
-        } else {
-            albumImage.setImageResource(R.drawable.ic_img_default);
         }
-        
-        if (albumImage.getDrawable() == null) {
-            albumImage.setImageResource(R.drawable.ic_img_default);
-        }
-        updateNotification();
     }
 
     private static void updateNotification() {
@@ -362,10 +433,37 @@ public class toolbar_music {
         }
     }
 
+    private static Map<String, String> getAuthHeaders(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(LoginActivity.PREF_NAME, Context.MODE_PRIVATE);
+        String token = prefs.getString(LoginActivity.KEY_USER_TOKEN, "");
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Authorization", token);
+        return headers;
+    }
+
     private static void playAudio(Context context, String path) {
         if (path == null || path.isEmpty()) return;
         
         if (!requestAudioFocus()) return;
+
+        if (path.startsWith("http")) {
+            mediaPlayer = new MediaPlayer();
+            try {
+                mediaPlayer.setDataSource(context, Uri.parse(path), getAuthHeaders(context));
+                mediaPlayer.prepareAsync();
+                mediaPlayer.setOnPreparedListener(mp -> {
+                    float volume = isSoundOn ? 1.0f : 0.0f;
+                    mediaPlayer.setVolume(volume, volume);
+                    mediaPlayer.start();
+                    isPlaying = true;
+                    updatePlayPauseUI();
+                });
+                mediaPlayer.setOnCompletionListener(mp -> onNext());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return;
+        }
 
         String assetPath = path.replace("\\", "/");
         if (assetPath.contains("assets/")) {
@@ -379,6 +477,8 @@ public class toolbar_music {
             float volume = isSoundOn ? 1.0f : 0.0f;
             mediaPlayer.setVolume(volume, volume);
             mediaPlayer.start();
+            isPlaying = true;
+            updatePlayPauseUI();
 
             // Lancement automatique de la suivante à la fin
             mediaPlayer.setOnCompletionListener(mp -> onNext());
@@ -393,6 +493,19 @@ public class toolbar_music {
      */
     private static long getAudioDuration(Context context, String path) {
         if (path == null || path.isEmpty()) return 60000;
+
+        if (path.startsWith("http")) {
+             MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+             try {
+                 retriever.setDataSource(path, getAuthHeaders(context));
+                 String time = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+                 return time != null ? Long.parseLong(time) : 60000;
+             } catch (Exception e) {
+                 return 60000;
+             } finally {
+                 try { retriever.release(); } catch (IOException ignored) {}
+             }
+        }
         
         String assetPath = path.replace("\\", "/");
         if (assetPath.contains("assets/")) {

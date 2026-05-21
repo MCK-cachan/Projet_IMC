@@ -2,6 +2,7 @@ package main;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -10,14 +11,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.database.CursorWindow; // Import nécessaire
+import android.database.CursorWindow; 
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatDelegate;
-import androidx.core.app.ActivityCompat;
-import androidx.core.os.LocaleListCompat;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import com.example.myapplication2.R;
 import com.tonpackage.database.AppDatabase;
 import com.tonpackage.database.Artiste;
@@ -29,89 +29,69 @@ import java.util.List;
 import main.Page1.NavigationHelper;
 import main.animation.animations;
 import main.appTool.toolbar;
+import main.appTool.toolbar_music;
 import main.music.PlaylistAdd;
 
 public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Appliquer les préférences (Thème et Langue) AVANT le super.onCreate
         toolbar.applySavedSettings(this);
-        
         super.onCreate(savedInstanceState);
 
-        // 1. AUGMENTER LA TAILLE DU CURSOR (Pour tes byte[] de musique/images)
         try {
             Field field = CursorWindow.class.getDeclaredField("sCursorWindowSize");
             field.setAccessible(true);
-            field.set(null, 100 * 1024 * 1024); // 100 Mo
+            field.set(null, 100 * 1024 * 1024);
         } catch (Exception e) {
             Log.e("DB_ERROR", "Erreur CursorWindow", e);
         }
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
         }
+        
         setContentView(R.layout.main_page1);
-
-        View root = findViewById(android.R.id.content);
-        View child = ((ViewGroup) root).getChildAt(0);
-
-        child.setY(0);
-        // 2. INITIALISATION DES OUTILS
         toolbar.init(this);
+        toolbar_music.init(this); // Initialise la toolbar musique sur le menu principal
         animations.init(this);
 
-        // 3. CHARGEMENT DES MODULES (Appel Room à l'intérieur)
-        try {
-            main.music.manage.loadAllModulesHome(this);
-        } catch (Exception e) {
-            Log.e("DB_ERROR", "Crash pendant le chargement des modules", e);
-        }
-
-        Log.d("DEBUG_UI", "ActionBar = " + getSupportActionBar());
-
-        new Thread(() -> {
-            try {
-                // 1. Test des Playlists (via musicDao)
-                List<Playlist> check = AppDatabase.getInstance(this).musicDao().getAllPlaylists();
-                Log.d("MainActivity", "Nombre de playlists : " + check.size());
-
-                // 2. TEST DE LA TABLE ARTISTE (via musicDao aussi !)
-                List<Artiste> artistes = AppDatabase.getInstance(this).musicDao().getAllArtistes();
-
-                Log.i("MainActivity"," Nombre d'artistes : " + artistes.size());
-                int nbArtistes = artistes.size();
-
-                Log.d("DB_TEST", "Succès ! Table Artiste accessible. Nombre d'artistes : " + nbArtistes);
-
-            } catch (Exception e) {
-                Log.e("DB_ERROR", "Erreur d'accès à la table Artiste : " + e.getMessage());
-                e.printStackTrace();
-            }
-        }).start();
+        updateLastIMC();
         
-        // Initialisation du bouton Musique
-        FrameLayout btnMusic = findViewById(R.id.btn_music_glossy);
-        if (btnMusic != null) {
-            btnMusic.setOnClickListener(v -> goToMusic(v));
-        }
-        FrameLayout btnFood = findViewById(R.id.btn_food);
-        if (btnFood != null) {
-            //mettre l'activiter de food
-            btnFood.setOnClickListener( v -> Toast.makeText(this, "c ok t bath", Toast.LENGTH_SHORT).show());
+        findViewById(R.id.btn_music_glossy).setOnClickListener(v -> NavigationHelper.ouvrirMusique(this));
+        findViewById(R.id.btn_food).setOnClickListener(v -> NavigationHelper.ouvrirIMC(this));
+    }
 
-        }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateLastIMC();
+        // Rafraîchir l'état de la toolbar si une musique tourne
+        toolbar_music.init(this);
+    }
 
+    private void updateLastIMC() {
+        TextView txtLastIMC = findViewById(R.id.txt_last_imc);
+        if (txtLastIMC != null) {
+            SharedPreferences prefs = getSharedPreferences("IMC_prefs", MODE_PRIVATE);
+            float lastIMC = prefs.getFloat("IMCdata", -1f);
+            if (lastIMC > 0) {
+                txtLastIMC.setText("Dernier IMC : " + String.format("%.2f", lastIMC));
+                txtLastIMC.setVisibility(View.VISIBLE);
+            } else {
+                txtLastIMC.setVisibility(View.GONE);
+            }
+        }
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        PlaylistAdd.handleImageResult(requestCode, resultCode, data);
+        
+        if (requestCode == toolbar.PICK_IMAGE_PROFILE && resultCode == RESULT_OK && data != null) {
+            toolbar.updateProfileOnServer(this, data.getData());
+        } else {
+            PlaylistAdd.handleImageResult(requestCode, resultCode, data);
+        }
     }
-
-    public void goToMusic(View view) {
-        NavigationHelper.ouvrirMusique(this);
-    }
-
 }

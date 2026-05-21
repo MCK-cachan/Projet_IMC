@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -18,6 +19,8 @@ import main.appTool.toolbar;
 import main.appTool.toolbar_music;
 import main.music.PlaylistAdd;
 import main.music.manage;
+import main.music.searchGestion;
+import main.DBmusic.DetectedChangeDB;
 
 public class MainMusic extends AppCompatActivity {
 
@@ -33,6 +36,15 @@ public class MainMusic extends AppCompatActivity {
         toolbar.init(this);
         toolbar_music.init(this);
         
+        // Initialisation de l'observation des changements de la base de données
+        DetectedChangeDB.observe(this);
+        
+        // Initialisation de la recherche
+        EditText searchInput = findViewById(R.id.search_input);
+        if (searchInput != null) {
+            searchGestion.initSearch(this, searchInput);
+        }
+
         // Récupération de la barre de recherche
         searchBarContainer = findViewById(R.id.search_bar_container);
 
@@ -95,6 +107,10 @@ public class MainMusic extends AppCompatActivity {
     private void handleChipAction(int viewId) {
         updateSearchBarVisibility(viewId);
         
+        // On vide la recherche lors d'un changement d'onglet
+        EditText searchInput = findViewById(R.id.search_input);
+        if (searchInput != null) searchInput.setText("");
+
         if (viewId == R.id.chip_home) {
             main.music.manage.loadAllModulesHome(this);
         } else if (viewId == R.id.chip_podcast) {

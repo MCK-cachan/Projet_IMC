@@ -30,10 +30,15 @@ import com.tonpackage.database.Musique;
 import com.tonpackage.database.Playlist;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.List;
 import java.util.concurrent.Executors;
 
 import main.appTool.toolbar_music;
+import main.serveur;
 
 public class popupMenu {
 
@@ -190,13 +195,6 @@ public class popupMenu {
                 Drawable drawable = context.getDrawable(resId).mutate();
                 if (p.selectedColor != null) {
                     drawable.setColorFilter(p.selectedColor, PorterDuff.Mode.SRC_IN);
-                    
-                    // Optionnel : Ajouter un background coloré léger comme dans la création
-                    GradientDrawable bg = new GradientDrawable();
-                    bg.setColor((p.selectedColor & 0x00FFFFFF) | 0x33000000); // 20% alpha
-                    bg.setCornerRadius(12);
-                    // On ne peut pas facilement combiner background et compound drawable ici sans layout perso, 
-                    // donc on se contente du logo coloré.
                 }
                 return drawable;
             }
@@ -287,23 +285,75 @@ public class popupMenu {
         context.startActivity(Intent.createChooser(intent, "Partager via"));
     }
 
-    private static void checkAndSave(Context context, Musique m, int plId) {
+    private static void checkAndSave(Context context, Musique m, Long plId) {
         Executors.newSingleThreadExecutor().execute(() -> {
             AppDatabase db = AppDatabase.getInstance(context);
             if (db.musicDao().checkIfMusicInPlaylist(m.musicTitle, plId)) {
                 new Handler(Looper.getMainLooper()).post(() ->
                         Toast.makeText(context, "Déjà dans la playlist !", Toast.LENGTH_SHORT).show());
             } else {
+                // Signalement au serveur
+                serveur.addToForever(context, m.idMusic);
+
                 Musique copy = new Musique();
                 copy.musicTitle = m.musicTitle;
                 copy.artisteName = m.artisteName;
-                copy.imagePath = m.imagePath;
-                copy.audioPath = m.audioPath;
                 copy.idPlaylist = plId;
+                copy.idArtiste = m.idArtiste;
+
+                // 1. Download Image
+                if (m.imagePath != null && m.imagePath.startsWith("http")) {
+                    String fileName = "img_" + System.currentTimeMillis() + ".jpg";
+                    String localPath = downloadFile(context, m.imagePath, "musics_images", fileName);
+                    copy.imagePath = (localPath != null) ? localPath : m.imagePath;
+                } else {
+                    copy.imagePath = m.imagePath;
+                }
+
+                // 2. Download Audio
+                if (m.audioPath != null && m.audioPath.startsWith("http")) {
+                    String fileName = "audio_" + System.currentTimeMillis() + ".mp3";
+                    String localPath = downloadFile(context, m.audioPath, "musics_audio", fileName);
+                    copy.audioPath = (localPath != null) ? localPath : m.audioPath;
+                } else {
+                    copy.audioPath = m.audioPath;
+                }
+
                 db.musicDao().insertMusic(copy);
                 new Handler(Looper.getMainLooper()).post(() ->
-                        Toast.makeText(context, "Ajouté !", Toast.LENGTH_SHORT).show());
+                        Toast.makeText(context, "music ajouter", Toast.LENGTH_SHORT).show());
             }
         });
+    }
+
+    private static String downloadFile(Context context, String urlString, String dirName, String fileName) {
+        try {
+            URL url = new URL(urlString);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(30000);
+            conn.connect();
+
+            if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                return null;
+            }
+
+            File dir = new File(context.getFilesDir(), dirName);
+            if (!dir.exists()) dir.mkdirs();
+            File file = new File(dir, fileName);
+
+            try (InputStream is = conn.getInputStream();
+                 FileOutputStream fos = new FileOutputStream(file)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = is.read(buffer)) != -1) {
+                    fos.write(buffer, 0, read);
+                }
+            }
+            return file.getAbsolutePath();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 }
