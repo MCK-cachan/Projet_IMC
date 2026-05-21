@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@drawable/test_logo"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MyApplication2"
+        android:usesCleartextTraffic="true">
+
+        <!-- Nouvelle activité de Login comme LAUNCHER -->
+        <activity
+            android:name="main.login.LoginActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="main.MainActivity"
+            android:exported="false" />
+
+        <activity
+            android:name="main.Page1.MainMusic"
+            android:exported="false" />
+
+        <service
+            android:name="main.music.MusicService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <receiver
+            android:name="main.music.MusicNotificationReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="main.music.PLAY_PAUSE" />
+                <action android:name="main.music.NEXT" />
+                <action android:name="main.music.PREV" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>

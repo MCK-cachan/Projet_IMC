@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Couleurs pour la notification en mode nuit -->
+    <color name="noty_bg">#222222</color>
+    <color name="noty_title">#FFFFFF</color>
+    <color name="noty_artist">#AAAAAA</color>
+    <color name="noty_icon_tint">#EEEEEE</color>
+</resources>

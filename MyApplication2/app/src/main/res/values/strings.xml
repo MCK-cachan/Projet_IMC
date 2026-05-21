@@ -1,0 +1,27 @@
+<resources>
+    <string name="test" translatable="false">Welcome ;)</string>
+    <string name="mainPageTextName">Name</string>
+    <string name="editTextText">Name</string>
+
+    <!-- Home music buttons -->
+    <string name="homeMusicPodcast">Podcasts</string>
+    <string name="homeMusicPlaylist">Playlists</string>
+    <string name="homeMusicSpeaker">Speakers</string>
+    <string name="homeMusicHome">Home</string>
+
+    <!-- Home music module -->
+    <string name="moduleMusicPlaylist">My Playlists</string>
+    <string name="moduleMusicTitre">Favorite Title</string>
+
+    <!-- Playlist Creation -->
+    <string name="create_playlist_title">Create Playlist</string>
+    <string name="hint_playlist_name">Playlist name</string>
+    <string name="btn_choose_image">Choose Image</string>
+    <string name="or_choose_logo">Or choose a logo:</string>
+    <string name="accent_color">Accent Color:</string>
+    <string name="btn_validate">Create</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="error_empty_name">Please enter a name</string>
+    <string name="playlist_created">Playlist created!</string>
+
+</resources>

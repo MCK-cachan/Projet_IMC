@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <include
+        android:id="@+id/included_toolbar"
+        layout="@layout/layout_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <HorizontalScrollView
+        android:id="@+id/scroll_chips"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="12dp"
+        android:scrollbars="none"
+        app:layout_constraintTop_toBottomOf="@id/included_toolbar">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp">
+
+            <TextView android:id="@+id/chip_home" style="@style/ChipButtonStyle" android:text="@string/homeMusicHome" />
+            <TextView android:id="@+id/chip_podcast" style="@style/ChipButtonStyle" android:text="@string/homeMusicPodcast" />
+            <TextView android:id="@+id/chip_playlist" style="@style/ChipButtonStyle" android:text="@string/homeMusicPlaylist" />
+            <TextView android:id="@+id/chip_speaker" style="@style/ChipButtonStyle" android:text="@string/homeMusicSpeaker" />
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- BARRE DE RECHERCHE CORRIGÉE -->
+    <LinearLayout
+        android:id="@+id/search_bar_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="12dp"
+        android:visibility="visible"
+        app:layout_constraintTop_toBottomOf="@id/scroll_chips">
+
+        <EditText
+            android:id="@+id/search_input"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@drawable/search_bar_background"
+            android:drawableStart="@android:drawable/ic_menu_search"
+            android:drawablePadding="12dp"
+            android:hint="Rechercher..."
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:paddingHorizontal="16dp"
+            android:textColor="?attr/colorOnSecondary"
+            android:textColorHint="#888888"
+            android:textSize="14sp"
+            android:importantForAutofill="no" />
+    </LinearLayout>
+
+    <include
+        android:id="@+id/music_player_bar"
+        layout="@layout/music_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <ScrollView
+        android:id="@+id/main_scroll_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/search_bar_container"
+        app:layout_constraintBottom_toTopOf="@id/music_player_bar">
+
+        <LinearLayout
+            android:id="@+id/dynamic_modules_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp" />
+
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

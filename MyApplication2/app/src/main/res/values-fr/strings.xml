@@ -1,0 +1,26 @@
+<resources>
+    <string name="test">Bonjour Monde</string>
+    <string name="mainPageTextName">Nom</string>
+    <string name="editTextText">Nom</string>
+
+    <!-- Home music buttons -->
+    <string name="homeMusicPodcast">Podcasts</string>
+    <string name="homeMusicPlaylist">Playlists</string>
+    <string name="homeMusicSpeaker">Enceinte</string>
+    <string name="homeMusicHome">Accueil</string>
+
+    <!-- Home music module -->
+    <string name="moduleMusicPlaylist">Mes Playlists</string>
+    <string name="moduleMusicTitre">Titres favoris</string>
+
+    <!-- Playlist Creation -->
+    <string name="create_playlist_title">Créer une Playlist</string>
+    <string name="hint_playlist_name">Nom de la playlist</string>
+    <string name="btn_choose_image">Choisir une image</string>
+    <string name="or_choose_logo">Ou choisir un logo :</string>
+    <string name="accent_color">Couleur d\'accentuation :</string>
+    <string name="btn_validate">Créer</string>
+    <string name="btn_cancel">Annuler</string>
+    <string name="error_empty_name">Veuillez entrer un nom</string>
+    <string name="playlist_created">Playlist créée !</string>
+</resources>

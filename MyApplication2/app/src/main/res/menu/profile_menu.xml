@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_change_profile_picture"
+        android:title="Changer la photo de profil" />
+    <item
+        android:id="@+id/menu_settings"
+        android:title="Paramètres" />
+    <item
+        android:id="@+id/menu_change_password"
+        android:title="Changer le mot de passe" />
+    <item
+        android:id="@+id/menu_change_name"
+        android:title="Changer le nom et prénom" />
+    <item
+        android:id="@+id/menu_change_email"
+        android:title="Changer l'adresse mail" />
+    <item
+        android:id="@+id/menu_logout"
+        android:title="Déconnexion" />
+</menu>
